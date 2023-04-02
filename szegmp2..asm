@@ -2,7 +2,7 @@
 %include "io.inc"
 section .data
 input times 21 db 0
-output times 8 db 0
+output times 8 db 0,0
 segmentno db 0
 counter db 0
 pos db 0
@@ -15,8 +15,6 @@ main:
     ;write your code here
     PRINT_STRING "Input 12-bit code: "
     GET_STRING input, 21
-    PRINT_STRING [input]
-    NEWLINE
     xor esi, esi ;index displacement
     xor bl, bl ;flag to check if non binary is inputted
     
@@ -24,6 +22,10 @@ loop1:
     mov al, byte[input + esi] ;get next character
     cmp al, 0 ;check if null character
     jz endloop1 ;end loop if null character encountered
+    cmp al, 10 ;check if line feed
+    jz endloop1 ;end loop if line feed encountered
+    cmp al, 12 ;check if form feed
+    jz endloop1 ;end loop if form feed encountered
     
     sub al, '0' ;get value of number
     cmp al, 1   ;check if input is 0 or 1
@@ -57,7 +59,7 @@ print_non12bitmsg:
 skip2:
     PRINT_DEC 1, [counter]
     NEWLINE
-    mov esi, 1 ;check for segment 0
+    mov esi, 1 ;check for pos of 1
     mov ah, 6  ;offset to get segment from pos
 loop2:
     cmp esi, 8 ;check if segment is 8, 8 means segment is 0
@@ -79,40 +81,77 @@ endloop2:
     jmp skip3
 seg0:
     xor bl, bl
-    mov ah, 8
+    mov ah, -7
     
-skip3:    
+skip3: 
     mov [segmentno], bl ;store segment number
     mov bl, [segmentno]
     sub bl, ah ; bl gets pos
     mov [pos], bl ;store position of first 1
+                  ;if segment is 0, pos of 1 is the same as the pos of the 1 in segment 1
     
     ;get sign bit
     mov al, [input]
     mov [output], al
+    
     ;get next 3 bits for segment pos
     ;4 2 1 -> X Y Z
     mov dl, [segmentno]
-    mov al, 4
+    mov dh, 2
+    mov ax, 4
     mov ebx, 1
     mov ecx, 3
 loop3:
-    jecxz endloop3
+    cmp ecx, 0
+    jz endloop3
     cmp dl, al
     jge set1
-    mov [output+ebx], 0
+    mov byte[output+ebx], '0'
     jmp skip4
 set1:
-    mov [output+ebx], 1
+    mov byte[output+ebx], '1'
+    sub dl, al
 skip4:
-    idiv ax, 2
-    mov ax, al
+    idiv dh
     inc ebx
-    loop loop3
-    
+    dec ecx
+    jmp loop3
+
 endloop3:
+
+    ;get the next 4 higher order bits
+    mov eax, 4
+    xor ebx, ebx ;reset value of ebx
+    mov bl, [pos]
+    inc ebx ;+1 from pos of 1
+    mov ecx, 4
+
+loop4:
+    jecxz endloop4
+    mov dl, [input+ebx]
+    mov [output+eax], dl
+    inc eax
+    inc ebx
+    
+    loop loop4
+endloop4:
+    PRINT_STRING "Compressed code: "
     PRINT_STRING output
+    NEWLINE
     PRINT_STRING "Segment number: "
     PRINT_DEC 1, [segmentno]
+    NEWLINE
+    PRINT_STRING "Do you want to continue (Y/N)?"
+    GET_CHAR al
+    PRINT_CHAR al
+    
+    ;reset all memory for next input
+    
+    
+    
+    
+    
+    
+    
     xor eax, eax
     ret
