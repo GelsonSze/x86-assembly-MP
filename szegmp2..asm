@@ -1,8 +1,8 @@
 ;Gelson Sze S14
 %include "io.inc"
 section .data
-input times 21 db 0
-output times 8 db 0,0
+input times 51 db 0
+output times 9 db 0
 segmentno db 0
 counter db 0
 pos db 0
@@ -14,10 +14,10 @@ main:
     mov ebp, esp; for correct debugging
     ;write your code here
     PRINT_STRING "Input 12-bit code: "
-    GET_STRING input, 21
+    GET_STRING input, 51
     xor esi, esi ;index displacement
     xor bl, bl ;flag to check if non binary is inputted
-    
+    xor bh, bh ;flag for error occurred
 loop1:
     mov al, byte[input + esi] ;get next character
     cmp al, 0 ;check if null character
@@ -46,6 +46,7 @@ endloop1: ;end of loop
     jmp skip1 ;else skip print
     
 print_nonbinmsg:
+    mov bh, 1
     PRINT_STRING nonbinmsg
     
 skip1:
@@ -54,11 +55,13 @@ skip1:
     jmp skip2 ;else skip print
     
 print_non12bitmsg:
+    mov bh, 1
     PRINT_STRING non12bitmsg
     
 skip2:
-    PRINT_DEC 1, [counter]
-    NEWLINE
+    cmp bh, 1 ;if error occurred, go to reset
+    je resetprompt
+    
     mov esi, 1 ;check for pos of 1
     mov ah, 6  ;offset to get segment from pos
 loop2:
@@ -141,17 +144,38 @@ endloop4:
     PRINT_STRING "Segment number: "
     PRINT_DEC 1, [segmentno]
     NEWLINE
+resetprompt:
     PRINT_STRING "Do you want to continue (Y/N)?"
     GET_CHAR al
-    PRINT_CHAR al
-    
+    GET_CHAR ah ;get \n input from CLI
+    cmp al, 'Y'
+    je reset
+    jmp end
+reset:
     ;reset all memory for next input
+    mov ecx, 50
+    mov eax, 0
+loop5:
+    jecxz endloop5
+    mov byte[input + eax], 0
+    inc eax
+    loop loop5
     
+endloop5:    
+    mov ecx, 8
+    mov eax, 0
+loop6:
+    jecxz endloop6
+    mov byte[output + eax], 0
+    loop loop6
+endloop6:
+    mov byte[segmentno], 0
+    mov byte[counter], 0
+    mov byte[pos], 0
+    NEWLINE
+    NEWLINE
+    jmp main
     
-    
-    
-    
-    
-    
+end:
     xor eax, eax
     ret
