@@ -1,7 +1,7 @@
 ;Gelson Sze S14
 %include "io.inc"
 section .data
-input times 51 db 0
+input times 14 db 0
 output times 9 db 0
 segmentno db 0
 counter db 0
@@ -11,31 +11,43 @@ non12bitmsg db "Error: Input should be 12 bits in length!",10,0
 section .text
 global main
 main:
-    mov ebp, esp; for correct debugging
-    ;write your code here
     PRINT_STRING "Input 12-bit code: "
-    GET_STRING input, 51
-    xor esi, esi ;index displacement
+    
+    xor esi, esi ;index displacement 
     xor bl, bl ;flag to check if non binary is inputted
-    xor bh, bh ;flag for error occurred
+    xor bh, bh ;flag for more than 12 input
+    xor dh, dh ;flag for error occurred
+    
 loop1:
-    mov al, byte[input + esi] ;get next character
-    cmp al, 0 ;check if null character
-    jz endloop1 ;end loop if null character encountered
-    cmp al, 10 ;check if line feed
-    jz endloop1 ;end loop if line feed encountered
-    cmp al, 12 ;check if form feed
-    jz endloop1 ;end loop if form feed encountered
-    
-    sub al, '0' ;get value of number
-    cmp al, 1   ;check if input is 0 or 1
-    ja setnonbin ;if above 1 set flag to 1
-returnnonbin:    
-    inc esi
+    GET_CHAR cl
     inc byte[counter]
+    cmp cl, 0 ;check if null character
+    je endloop1 ;end loop if null character encountered
+    cmp cl, 10 ;check if line feed
+    je endloop1 ;end loop if line feed encountered
+    cmp cl, 12 ;check if form feed
+    je endloop1 ;end loop if form feed encountered
     
+    sub cl, '0'
+    cmp cl, 1
+    ja setnonbin
+returnnonbin:
+    
+    cmp byte[counter], 12
+    jg setexceedflag
+returnexceed:
+    cmp bh, 1
+    je loop1
+    
+    add cl, '0'
+    mov [input+esi], cl
+    inc esi
     jmp loop1 ;next iteration
    
+setexceedflag:
+    mov bh, 1
+    jmp returnexceed
+    
 setnonbin:
     mov bl, 1
     jmp returnnonbin
@@ -46,20 +58,20 @@ endloop1: ;end of loop
     jmp skip1 ;else skip print
     
 print_nonbinmsg:
-    mov bh, 1
+    mov dh, 1
     PRINT_STRING nonbinmsg
     
 skip1:
-    cmp byte[counter], 12 ;if input length is not 12
+    cmp byte[counter], 13 ;if input length is not 12 + \0
     jne print_non12bitmsg
     jmp skip2 ;else skip print
     
 print_non12bitmsg:
-    mov bh, 1
+    mov dh, 1
     PRINT_STRING non12bitmsg
     
 skip2:
-    cmp bh, 1 ;if error occurred, go to reset
+    cmp dh, 1 ;if error occurred, go to reset
     je resetprompt
     
     mov esi, 1 ;check for pos of 1
@@ -153,7 +165,7 @@ resetprompt:
     jmp end
 reset:
     ;reset all memory for next input
-    mov ecx, 50
+    mov ecx, 13
     mov eax, 0
 loop5:
     jecxz endloop5
